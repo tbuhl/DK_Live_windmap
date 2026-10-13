@@ -58,7 +58,7 @@ Streamlit Community Cloud only runs Streamlit apps, so it isn't an option. DK WI
 |---|---|---|
 | **Render** (easiest) | New → *Blueprint* → pick the repo (uses `render.yaml`), or New → *Web Service* with start command `python serve.py` | Runs `serve.py` unchanged. The free tier sleeps when idle, so the first visit after a pause takes about a minute. |
 | **Cloudflare Pages** | Connect the repo, framework preset *None*, build command empty, output directory `/` | Always on and fast. `functions/eds/[dataset].js` replaces the proxy automatically. I haven't deployed this one. |
-| **Hugging Face Spaces** | New Space → SDK *Docker* → push the repo (uses `Dockerfile`) | Also runs `serve.py` unchanged. |
+| **Hugging Face Spaces** | New Space → SDK *Docker* → push the repo (uses `Dockerfile`) | Runs `serve.py` unchanged, but Docker Spaces need a paid PRO plan (only Static Spaces are free, and those can't run the price proxy). |
 
 Everything else runs in the visitor's browser. Open-Meteo is called from each visitor's own IP, so they use their own free quota. The proxy cache is shared, which keeps Energinet traffic low however many people visit.
 

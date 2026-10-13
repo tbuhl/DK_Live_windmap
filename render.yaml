@@ -1,4 +1,4 @@
-# Render.com blueprint (free web service). "New +" -> Blueprint -> pick the repo.
+# Render.com blueprint (free web service). Dashboard: New + -> Blueprint -> pick this repo -> Apply.
 services:
   - type: web
     name: dk-wind
@@ -6,3 +6,7 @@ services:
     plan: free
     buildCommand: echo "nothing to build"
     startCommand: python serve.py
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
