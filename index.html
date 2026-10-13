@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DK WIND — Danish wind &amp; grid</title>
+<meta name="description" content="Every wind turbine in Denmark on a live 3D globe: wind flow, radar, lightning, wake analysis, interconnector flows, spot prices and 50 years of production history.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2711%27 fill=%27none%27 stroke=%27%235ee1ff%27 stroke-width=%272.5%27/%3E%3Cpath d=%27M16 16V5M16 16l9 5M16 16l-9 5%27 stroke=%27%235ee1ff%27 stroke-width=%272.5%27/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.124.0/Build/Cesium/Widgets/widgets.css">
+<link rel="stylesheet" href="style.css">
+<script>window.CESIUM_BASE_URL = "https://cdn.jsdelivr.net/npm/cesium@1.124.0/Build/Cesium/";</script>
+<script src="https://cdn.jsdelivr.net/npm/cesium@1.124.0/Build/Cesium/Cesium.js"></script>
+</head>
+<body data-look="eo">
+
+<div id="globe"></div>
+<canvas id="wind"></canvas>
+<div id="nodes"></div>
+<div id="fx"><i class="br tl"></i><i class="br tr"></i><i class="br bl"></i><i class="br brr"></i><div class="reticle"></div><div class="scan"></div></div>
+
+<!-- ═════════ top bar ═════════ -->
+<header id="top">
+  <div class="brand"><svg class="logo" viewBox="0 0 32 32"><g class="rot"><path d="M16 16V3.5M16 16l10.8 6.2M16 16L5.2 22.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></g><circle cx="16" cy="16" r="2.4" fill="currentColor"/></svg><div><b>DK WIND</b><small>DANISH WIND &amp; GRID</small></div></div>
+  <div class="kpis">
+    <div class="kpi"><label>TURBINES</label><b id="k-count">–</b></div>
+    <div class="kpi"><label>ACTIVE CAPACITY</label><b id="k-cap">–</b></div>
+    <div class="kpi hot"><label>WIND NOW (MODEL)</label><b id="k-model">–</b></div>
+    <div class="kpi hot"><label>WIND NOW (ENERGINET)</label><b id="k-actual">–</b></div>
+    <div class="kpi"><label>CO₂</label><b id="k-co2">–</b></div>
+  </div>
+  <div class="clock"><b id="clk-utc">--:--:--</b><small>UTC</small><b id="clk-dk">--:--</b><small>CPH</small></div>
+</header>
+
+<button id="home" class="homebtn" title="Back to the start view (H)"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5M5.5 10v10h5v-6h3v6h5V10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></svg><span>START VIEW</span></button>
+
+<!-- ═════════ left panel ═════════ -->
+<aside id="left" class="panel">
+  <section>
+    <h3>LAYERS</h3>
+    <label class="sw"><input type="checkbox" id="l-turbines" checked><span></span>Wind turbines</label>
+    <label class="sw"><input type="checkbox" id="l-links" checked><span></span>Interconnectors</label>
+    <label class="sw"><input type="checkbox" id="l-flow" checked><span></span>Wind flow (100 m)</label>
+    <label class="sw"><input type="checkbox" id="l-radar"><span></span>Rain radar</label>
+    <label class="sw"><input type="checkbox" id="l-light"><span></span>Lightning <em id="lstat" class="stat"></em></label>
+    <label class="sw"><input type="checkbox" id="l-cloud"><span></span>Cloud cover</label>
+    <label class="sw"><input type="checkbox" id="l-wake" checked><span></span>Wake analysis <em class="stat">zoom to a farm</em></label>
+    <label class="sw"><input type="checkbox" id="l-names" checked><span></span>Wind-farm labels</label>
+    <label class="sw"><input type="checkbox" id="l-daynight"><span></span>Day / night terminator</label>
+    <div class="row"><label for="l-heat">Field</label>
+      <select id="l-heat"><option value="">off</option><option value="gust">Gusts</option><option value="temp">Temperature</option><option value="pres">Pressure</option><option value="precip">Precipitation</option></select></div>
+    <div id="legend" class="legend" hidden><i></i><span class="lo"></span><span class="hi"></span></div>
+  </section>
+
+  <section>
+    <h3>TURBINES</h3>
+    <div class="seg" id="color-mode">
+      <button data-v="live" class="on">LIVE OUTPUT</button><button data-v="cap">SIZE</button><button data-v="age">AGE</button>
+    </div>
+    <div class="legend" id="tlegend"><i></i><span class="lo"></span><span class="hi"></span></div>
+    <div class="row chips" id="siting">
+      <button data-v="on" class="chip on">ONSHORE</button><button data-v="off" class="chip on">OFFSHORE</button>
+    </div>
+    <div class="row"><label>Built ≤ <b id="year-v">2026</b></label>
+      <input type="range" id="year" min="1978" max="2026" value="2026"><button id="year-play" class="mini" title="Play the build-out">▶</button></div>
+    <small class="hint" id="year-hint"></small>
+  </section>
+
+  <section>
+    <h3>SENSOR</h3>
+    <div class="seg five" id="looks">
+      <button data-v="eo" class="on">EO</button><button data-v="nvg">NVG</button><button data-v="flir">FLIR</button><button data-v="crt">CRT</button><button data-v="noir">NOIR</button>
+    </div>
+    <h3 class="sub">BASEMAP</h3>
+    <div class="seg" id="basemap">
+      <button data-v="sat" class="on">SAT</button><button data-v="dark">DARK</button><button data-v="night">NIGHT</button>
+    </div>
+  </section>
+
+  <section>
+    <h3>GO TO</h3>
+    <input id="search" list="places" placeholder="Wind farm, city, Horns Rev…" autocomplete="off" spellcheck="false">
+    <datalist id="places"></datalist>
+    <div class="chips wrap" id="presets"></div>
+    <div class="row two"><button id="tour" class="btn">▶ TOUR</button><button id="orbit" class="btn">⟳ ORBIT</button></div>
+  </section>
+</aside>
+
+<!-- ═════════ right panel ═════════ -->
+<aside id="right" class="panel">
+  <section id="archive" hidden>
+    <h3>ARCHIVE <small class="age">production since 1977</small></h3>
+    <div class="akpi" id="akpi"></div>
+    <div class="chart"><svg id="achart-y" viewBox="0 0 300 104" preserveAspectRatio="none"></svg><div class="axis" id="axis-y"></div></div>
+    <div class="legend2"><i class="l1"></i>onshore <i class="lb"></i>offshore <i class="lc"></i>capacity <span>drag to scrub</span></div>
+    <div class="chart" style="margin-top:9px"><svg id="achart-m" viewBox="0 0 300 78" preserveAspectRatio="none"></svg><div class="axis" id="axis-m"></div></div>
+    <div class="legend2"><span style="margin-left:0">monthly production, GWh</span></div>
+  </section>
+
+  <section class="live">
+    <h3>GRID <i class="dot" id="feed-dot"></i><small id="feed-age" class="age"></small></h3>
+    <div class="prices" id="prices"></div>
+    <div class="chart"><svg id="pchart" viewBox="0 0 300 92" preserveAspectRatio="none"></svg><div class="axis" id="paxis"></div></div>
+    <div class="legend2"><i class="l1"></i>DK1 West <i class="l2"></i>DK2 East <span id="pnote">day-ahead spot</span></div>
+  </section>
+
+  <section class="live">
+    <h3>PRODUCTION &amp; EXCHANGE</h3>
+    <div class="net" id="net"></div>
+    <div class="mix" id="mix"></div>
+    <div class="mixlegend" id="mixlegend"></div>
+  </section>
+
+  <section class="live">
+    <h3>INTERCONNECTORS <small class="age">← import · export →</small></h3>
+    <div id="linktable" class="linktable"></div>
+  </section>
+  <footer class="credits">
+    <b>Data</b> · Energistyrelsen wind turbine register &amp; production statistics · Energi Data Service (Energinet) · Open-Meteo · RainViewer · Blitzortung.org · Esri · NASA GIBS · CesiumJS.<br>
+    <b>Wake model</b> · Niayifar &amp; Porté-Agel (2016), checked against PyWake.<br>
+    <b>Style</b> · visual language inspired by <i>God's Eye View</i> by Bilawal Sidhu (MIT).
+  </footer>
+</aside>
+
+<!-- ═════════ cards ═════════ -->
+<div id="wakecard" class="panel" hidden></div>
+<div id="card" class="panel" hidden></div>
+<div id="tip" hidden></div>
+
+<!-- ═════════ bottom timeline ═════════ -->
+<footer id="bottom">
+  <div class="seg mini" id="mode"><button data-v="live" class="on">LIVE</button><button data-v="archive">ARCHIVE</button></div>
+  <button id="play" class="round" title="Play (Space)">▶</button>
+  <div class="tl">
+    <div class="ticks" id="ticks"></div>
+    <input type="range" id="time" min="-3" max="24" step="0.25" value="0">
+  </div>
+  <div class="tread"><b id="t-label">NOW</b><small id="t-sub">live</small></div>
+  <button id="now" class="btn small">NOW</button>
+  <div class="telemetry"><span class="radarlabel" id="radarlabel"></span><span class="sp"></span><span id="t-pos">–</span><span id="t-alt">–</span><span id="t-fps" title="Click to change quality mode (auto / high / low)">–</span></div>
+</footer>
+
+<div id="boot"><div class="bootbox"><svg class="logo big" viewBox="0 0 32 32"><g class="rot"><path d="M16 16V3.5M16 16l10.8 6.2M16 16L5.2 22.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></g><circle cx="16" cy="16" r="2.4" fill="currentColor"/></svg><b>DK WIND</b><pre id="bootlog"></pre></div></div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

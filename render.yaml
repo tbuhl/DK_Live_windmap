@@ -1,0 +1,8 @@
+# Render.com blueprint (free web service). "New +" -> Blueprint -> pick the repo.
+services:
+  - type: web
+    name: dk-wind
+    runtime: python
+    plan: free
+    buildCommand: echo "nothing to build"
+    startCommand: python serve.py
